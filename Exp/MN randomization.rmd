@@ -1,0 +1,190 @@
+---
+title: "MN GOTV 2017: Randomization Code"
+author: "Anna Cooper"
+date: "`r Sys.time() - 60 * 60 * 5`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width = 6, fig.height = 3.5)
+aiHelper::check_packages()
+```
+
+```{r config, echo = T, message=FALSE, warning=FALSE}
+library(aiRando)
+library(aiHelper)
+library(ggplot2)
+library(data.table)
+rm(list = ls())
+```
+
+[Here is a link to randomization plan](www.linkhere.com).
+
+# Config {.tabset}
+
+## Set Seed 
+
+```{r}
+set.seed(42991)
+```
+
+## Configure Randomization
+
+<!-- If you need to rename/recode variables or create unique ID,  -->
+<!-- do that in basefile. -->
+
+<!-- If you need to subset using roboscreen data, you should have a returned  -->
+<!-- roboscreen that you can match into the basefile by unique ID or phone number. -->
+
+<!-- After you read in data, subset to only the data that you need. -->
+
+Data Input
+
+```{r data input, echo = T}
+# Read in Data
+wd <- "C:/Users/acooper/Documents/Experiments/MN GOTV 2017/"
+df <- aiHelper::read_in(file.path(wd, "mn_joint_gotv.csv"))
+
+# Name of your unique id
+unique_id <- "voterfilevanid"
+
+df <- df[order(df$voterfilevanid), ]
+```
+
+
+Data Export
+
+````{r}
+# Folder where randomization should be stored
+rand_loc <- file.path(wd,"randomization")
+```
+
+Variables
+
+```{r}
+df$x_2016catpartisan <- aiHelper::ai_impute(df$x_2016catpartisan, verbose = T)
+df$partisan_bin <- aiHelper::apply_quantiles(df$x_2016catpartisan, breaks = 3)
+
+df$x_2017catvprop <- aiHelper::ai_impute(df$x_2017catvprop, verbose = T)
+df$turnout_bin <- aiHelper::apply_quantiles(df$x_2017catvprop, breaks = 3)
+
+df[df$sex=='U',]$sex <- 'F'
+
+# Stratification variables
+strat_vars <- c("age", "racename", "sex","partisan_bin","turnout_bin","age","countyname")
+
+# Balance variables
+bal_vars <- strat_vars
+
+# Creative Fields
+creative_fields <- c("firstname","lastname","suffix","maddress","mcity","mstate","mzip5") 
+
+df <- df[, unique(c('voterfilevanid', strat_vars, bal_vars, creative_fields))]
+
+# Set Treatment Groups
+# General best practice is to perform a single randomization
+# No matter how many treatment groups/types you have
+
+```
+
+<!-- ## Create Necessary Folders -->
+
+<!-- ```{r, render = F} -->
+
+<!-- if( !is.null(export_script) && !file.exists(export_script)){ -->
+<!--     stop("mn_rando_script") -->
+<!-- } -->
+
+<!-- if(! dir.exists(rand_loc)){ -->
+<!--   cat(sprintf("C:/Users/acooper/Documents/Experiments/MN GOTV 2017/", rand_loc)) -->
+<!--   dir.create(rand_loc) -->
+<!-- } -->
+<!-- ``` -->
+
+
+<!-- SHOULD NOT HAVE TO EDIT BELOW HERE FOR MOST RANDOMIZATIONS -->
+<!-- EXPORT FILE IS SEPARATE -->
+
+# Subset to Required Fields
+
+```{r}
+default_fields <- unique(
+  c('voterfilevanid', unique_id, 'mstate', strat_vars, bal_vars, creative_fields))
+
+not_in <- default_fields[!default_fields %in% names(df)]
+
+if(!is.null(not_in)){
+  sprintf("NOTE: The variables %s are in default fields but are not in your df.", 
+          not_in)
+}
+
+df <- df[, names(df) %in% default_fields]
+```
+
+# Checks {.tabset}
+
+Check for uniqueness of ids and nonmissing on essential covariates (names, 
+addresses, etc). If there are missings, maybe a good idea to go back and impute
+on the basefile.
+
+## No Missing 
+
+```{r}
+aiHelper::check_df(df)
+```
+
+## IDs, etc.
+
+```{r}
+#aiHelper::check_ids(df, voterfile_id = "voterfilevanid",)
+```
+
+## Distributions
+
+```{r}
+aiHelper::print_distrib(df, unique(c(strat_vars, bal_vars)))
+```
+
+# Randomize Treatment Groups
+
+```{r single_rand, echo = T}
+x <- aiRando::rand(dat = df,
+                   treat_prop = c(1/3, 1/3, 1/3),
+                   treat_labs = c('control', 'voting_rights', 
+                                  'social_pressure'),
+                   assign_var = 'final_assign',
+                   strat_vars = strat_vars,
+                   bal_vars = bal_vars,
+                   subset = F)
+```
+
+## Final Assignment
+
+Create the final assignment variable
+
+```{r treatment, echo = T}
+# Check distribution of final assignment
+
+aiHelper::ai_table(x$final_assign, ptable = T)
+```
+
+## Internal
+
+Exporting skinny file of the ids, treatments, and strata as well as full internal dataset.
+
+```{r export}
+
+time_exp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+
+aiHelper::export_csv(df, 
+                     filename = paste0(wd, "mn_rando.csv"))
+
+
+# full_name <- paste0(time_exp, 'mn_gotv_full_randomization.txt')
+# aiHelper::export_tab(df, filename = file.path(rand_loc, full_name))
+```
