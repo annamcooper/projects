@@ -1,0 +1,433 @@
+---
+title: "AFSCME National Membership Tracking:</br>July 2017"
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: true
+---
+##AFSCME Data & Analytics Department
+```{r, out.width = "100px", echo=F, fig.align='right'}
+knitr::include_graphics("http://s3.amazonaws.com/afscme-temp/AFSCME_Logo-2Color.jpg")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+remove(list=objects())
+gc()
+setwd("C:/Users/acooper/Documents/Polling/Member Time Series/July 2017")
+options( java.parameters = "-Xmx6g" )
+options(scipen=999)
+require(survey)
+require(Hmisc)
+require(plyr)
+require(ggplot2)
+require(sjPlot)
+style <- list(css.table='font-family : Roboto'
+              , css.thead="border-top:1px solid; text-align:center; font-style:italic; font-weight:normal;"
+              , css.lasttablerow="border-bottom:1px solid;")
+df <- read.csv('weighted_completes_v3.csv', header=T, na.strings = "")
+
+weights <- df$weights
+
+df$facebook <- NA
+df$twitter <- NA
+df$instagram <- NA
+df$pinterest <- NA
+df$linkedin <- NA
+df$digiother <- NA
+df$diginone <- NA
+
+df[(grep("1+",df$q11)),]$facebook <- 1
+df[(grep("2+",df$q11)),]$twitter <- 2
+df[(grep("3+",df$q11)),]$instagram <- 3
+df[(grep("4+",df$q11)),]$pinterest <- 4
+df[(grep("5+",df$q11)),]$linkedin <- 5
+df[(grep("6+",df$q11)),]$digiother <- 6
+
+#count total digi platforms
+df$digiplatforms <- NA
+df$digiplatforms <- nchar(df$q11)
+
+
+radtab <- function(v1, v2, lab1, lab2, weights, v1name, v2name){
+  t <- sjt.xtab(v1, v2, weight.by = weights, show.col.prc = T, show.obs = T, digits=1 #,title="YOLO SWAG XTABS"
+           , tdcol.col = "000000", var.labels = c(v1name,v2name), value.labels = list(lab1, lab2)
+           , show.summary = FALSE
+           , CSS = style)
+  return(t)
+} 
+
+#reset levels
+
+#what to do about:
+# race_lvl
+df$race <- factor(df$race, levels(df$race)[c(1,2,3,5,4)])
+
+
+l1 <- list(q = 'q1', lab = c("1" = "Strongly approve","2" = "Somewhat approve","3" = "Unsure","4" = "Somewhat disapprove","5" = "Strongly disapprove","6" = "Refused"), wgt='weights')
+
+l2 <- list(q = 'q2', lab = c("1" = "I have heard lot of about the legislation","2" = "I have heard a little about the legislation","3" = "I have not heard any news about the legislation","4" = "Unsure","5" = "Refused"), wgt='weights')
+
+l3 <- list(q = 'q3', lab = c("1" = "My family and I would be much better off","2" = "My family and I would be somewhat better off","3" = "My family and I would not be affected","4" = "My family and I would be somewhat worse off","5" = "My family and I would be much worse off	","6" = "Unsure","7" = "Refused"), wgt= 'weights')
+
+l4 <- list(q = 'q4', lab = c("1" = "Good for people like me","2" = "Bad for people like me","3" = "No Difference / Doesn't Matter", "4" = "Unsure", "5" = "Refused"), wgt='weights')
+
+l5 <- list(q = 'q5', labs = c("1" = "I am most concerned with politics at the local level","2" = "I am most concerned with politics at the state level","3" = "I am most concerned with politics at the national level","4" = "I am not concerned with politics at all","5" = "Unsure","6" = "Refused"), wgt = 'weights')
+
+l6 <- list(q = 'q6', lab = c("1" = "Very active","2" = "Somewhat active","3" = "Not too active","4" = "Not active at all"), wgt='weights')
+
+l7 <- list(q = 'q7', lab = c("1" = "Yes","2" = "No","3" = "Unsure","4" = "Refused"), wgt='weights')
+
+l8a <- list(q = 'q8a', lab = c("1" = "Very convincing","2" = "Somewhat convincing","3" = "Not very convincing","4" = "Not at all convincing","5" = "Unsure"), wgt='weights')
+
+l8b <- list(q = 'q8b', lab = c("1" = "Very convincing","2" = "Somewhat convincing","3" = "Not very convincing","4" = "Not at all convincing","5" = "Unsure","6" = "Refused"), wgt='weights')
+
+l9 <- list(q = 'q9', lab = c("1" = "Yes, I do recall seeing ads or other information from AFSCME","2" = "No, I do not recall seeing anything","3" = "Unsure","4" = "Refused"), wgt='weights')
+
+l10 <- list(q = 'q10', lab = c("1"="Less than $25,000","2"="25,000 - less than 50,000","3"="50,000 - less than 75,000","4"="75,000 - less than 110,000","5"="110,000 and over","6"="Prefer not to say"), wgt='weights')
+
+l11 <- list(q = 'q11', lab = c("1" = "Facebook","2" = "Twitter","3" = "Instagram","4" = "Pinterest","5" = "LinkedIn","6" = "Other","7" = "Do Not Use Social Media","8" = "Refused"), wgt='weights')
+
+l11b <- list(q = 'q11b', lab = c("1" = "Facebook","2" = "Twitter","3" = "Instagram","4" = "Pinterest","5" = "LinkedIn","6" = "Other","7" = "Do Not Use Social Media","8" = "Refused"), wgt='weights')
+
+f <- list(q = 'facebook', lab = c("1" = "Facebook"), wgt = 'weights')
+
+dp <- list(q = 'digiplatforms', lab = c("1" = "1", "2"="2", "3"="3", "4"="4","5"="5"), wgt='weights')
+
+lrace <- list(q = 'race', lab = c("B"="African-American", "H"="Hispanic", "W"="White", "O"="Other" ), wgt = 'weights')
+lage <- list(q = 'age_category', lab = c("18 to 34", "35 to 50", "51 to 65", "66 to 75", "76 +"), wgt = 'weights')
+lgender <- list(q = 'qgender', lab = c("1" = "Male", "2" = "Female"), wgt = 'weights')
+
+
+
+```
+<style type="text/css">
+.table {
+    margin-left:auto; 
+    margin-right:auto;
+    width: 75%;
+}
+h1 {
+  color: #00A84F;
+  font-size: 20px;
+}
+h2 {
+  color: #808080;
+  font-size: 15px;
+}
+h3 {
+  color: #000000;
+  font-size: 15px;
+}
+<!-- body { -->
+<!--     font-family: 'Nunito Sans'; -->
+<!-- } -->
+<!-- body { -->
+<!--   color: #222222; -->
+<!--   background-image: url('http://bestanimations.com/Nature/Fire/lava-fire-animated-gif.gif'); -->
+<!-- } -->
+
+<!-- p { -->
+<!--     color: #ffffff; -->
+<!-- } -->
+<!-- body { -->
+<!--     font-family: 'Nosifer'; -->
+<!-- } -->
+
+
+<!-- </style> -->
+<!-- <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'> -->
+
+
+<b><p align="center">N = `r nrow(df)`
+</p></b>
+
+# About
+
+This survey is a survey of 1143 AFSCME members and retirees nationwide. The surveys were collected via landline (379), cell phone (412), and online (352) from May 9, 2017 - May 29, 2017. Respondents are weighted to the membership using age, race, gender, and partisanship.
+
+# Question Dictionary
+
+
+* **Q1**: Overall, do you approve or disapprove of the way Donald Trump is handling his job as President?
+
+* **Q2**:  In the past few weeks, how much have you heard or read about the legislation proposed by Senate Republicans to repeal and replace the Affordable Care Act, also known as Obama Care?
+
+* **Q3**: If the legislation proposed to repeal and replace the Affordable Care Act became law, how do you think you and your family might be personally affected by it?
+
+* **Q4**: Do you think Donald Trump´s economic policies are good for people like you, are bad for people like you, or don´t have much effect either way?
+
+* **Q5**: Thinking about politics and issues that affect you personally, are you generally most concerned with local politics and issues, such as city council or other local elections, state-level politics and elections, or national politics?
+
+* **Q6**: Now, please tell me, how active you are in your community, either through community groups such as a parent teacher association, your church, Habitat for Humanity, Rotary, or any other volunteer organization outside of your union, would you say you are very active, somewhat active, not too active, or not active at all?
+
+* **Q7**: If the union could no longer directly collect dues using payroll deduction, would you be willing to pay dues to the union with a credit card or bank draft?
+
+* **Q8A**: Next I am going to read you a short statement.  After I am finished I would like you to tell me if the statement is convincing or not convincing. Every public employee may choose whether to join the union but the union is required to negotiate on behalf of all workers whether or not they join. Since all workers benefit from the union´s gains, it´s fair that everyone chips in toward the cost. These fair share arrangements were approved by a unanimous Supreme Court 40 years ago. No one is or will be required to join a union, and corporate special interests are working to erode the freedom of working people to come together to negotiate for fair wages and benefits.
+
+* **Q8B**: Next I am going to read you a short statement.  After I am finished I would like you to tell me if the statement is convincing or not convincing. In America, we have the right to decide how we spend our hard-earned money and how we align ourselves politically. Choosing to work in the public sector shouldn´t require anyone to pay for union representation. If the union does a good job securing benefits and making itself valuable, then it doesn´t need to rely on fair-share agreements or force people to join.
+
+* **Q9**: Changing topics, I´d like you to think about any content you have seen online over the past few weeks. Do you remember seeing information or advertisements from AFSCME, either on Facebook, ads on other websites, or other online sources?
+
+* **Q10**: What is your annual income?
+
+* **Q11**: For which of these social media platforms do you have an account?
+
+* **Q11B**: Which of those social media accounts would you say you use the most?
+
+* **QAGE**: Age
+
+* **QGENDER**: Gender  
+
+
+# Trump Approval
+
+**Overall, do you approve or disapprove of the way Donald Trump is handling his job as President?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l1)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+
+# Health Care
+
+### ACA Repeal
+
+**In the past few weeks, how much have you heard or read about the legislation proposed by Senate Republicans to repeal and replace the Affordable Care Act, also known as Obama Care?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l2)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+#
+
+**If the legislation proposed to repeal and replace the Affordable Care Act became law, how do you think you and your family might be personally affected by it?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l3)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+
+# Economy
+
+**Do you think Donald Trump´s economic policies are good for people like you, are bad for people like you, or don´t have much effect either way? ?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l4)){
+ for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+
+# Political Interest
+
+**Thinking about politics and issues that affect you personally, are you generally most concerned with local politics and issues, such as city council or other local elections, state-level politics and elections, or national politics?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l5)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+
+# Community Engagement
+
+**Now, please tell me, how active you are in your community, either through community groups such as a parent teacher association, your church, Habitat for Humanity, Rotary, or any other volunteer organization outside of your union, would you say you are very active, somewhat active, not too active, or not active at all?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l6)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+
+# Payroll Deduction
+
+**If the union could no longer directly collect dues using payroll deduction, would you be willing to pay dues to the union with a credit card or bank draft?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l7)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+# Right to Work
+
+**Next I am going to read you a short statement.  After I am finished I would like you to tell me if the statement is convincing or not convincing.**
+
+**Every public employee may choose whether to join the union but the union is required to negotiate on behalf of all workers whether or not they join. Since all workers benefit from the union´s gains, it´s fair that everyone chips in toward the cost. These fair share arrangements were approved by a unanimous Supreme Court 40 years ago. No one is or will be required to join a union, and corporate special interests are working to erode the freedom of working people to come together to negotiate for fair wages and benefits.**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l8a)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+#
+
+**In America, we have the right to decide how we spend our hard-earned money and how we align ourselves politically. Choosing to work in the public sector shouldn´t require anyone to pay for union representation. If the union does a good job securing benefits and making itself valuable, then it doesn´t need to rely on fair-share agreements or force people to join.**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l8b)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+# Online Communication 
+
+**Changing topics, I´d like you to think about any content you have seen online over the past few weeks. Do you remember seeing information or advertisements from AFSCME, either on Facebook, ads on other websites, or other online sources?** 
+
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l9)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+# Income
+
+**The following questions are for statistical purposes only, and to ensure a representative sample**
+
+**What is your annual income?**
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(l10)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+<!--
+# Digital Use
+
+**For which of these social media platforms do you have an account?**
+
+<!-- # ```{r include=TRUE, echo=F} -->
+<!-- # l <- list() -->
+<!-- # for (i in list(l11)){ -->
+<!-- #   for (p in list(lgender, lrace, lage, l10)){ -->
+<!-- # z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q) -->
+<!-- # l <- c(l, z$knitr) -->
+<!-- # } -->
+<!-- # } -->
+<!-- ``` -->
+<!-- `r unlist(l)` -->
+
+<!--```{r include=TRUE, echo=F}
+# l <- list()
+# for (i in list(f)){
+#   for (p in list(lgender, lrace, lage, l10)){
+# z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+# l <- c(l, z$knitr)
+# }
+# }
+```
+`r unlist(l)`
+
+**Which of those social media accounts would you say you use the most?**
+
+```{r include=TRUE, echo=F}
+# l <- list()
+# for (i in list(l11b)){
+#   for (p in list(lgender, lrace, lage, l10)){
+# z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+# l <- c(l, z$knitr)
+# }
+# }
+```
+`r unlist(l)`
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(dp)){
+  for (p in list(lgender, lrace, lage, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+-->
+#Demographics
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(lage)){
+  for (p in list(lrace, l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
+
+```{r include=TRUE, echo=F}
+l <- list()
+for (i in list(lrace)){
+  for (p in list(l10)){
+z <- radtab(df[,i$q], df[,p$q], i$lab, p$lab, df[,i$wgt], i$q, p$q)
+l <- c(l, z$knitr)
+}
+}
+```
+`r unlist(l)`
