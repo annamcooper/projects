@@ -1,0 +1,617 @@
+---
+title: "AFSCME National Membership Tracking: July 2017"
+# author: "AFSCME Data & Analytics Department"
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+---
+##AFSCME Data & Analytics Department
+```{r, out.width = "100px", echo=F, fig.align='right'}
+knitr::include_graphics("http://s3.amazonaws.com/afscme-temp/AFSCME_Logo-2Color.jpg")
+```
+<style type="text/css">
+.table {
+    margin-left:auto; 
+    margin-right:auto;
+    width: 75%;
+}
+h1 {
+  color: #00A84F;
+  font-size: 20px;
+}
+h2 {
+  color: #ACB2BD;
+  font-size: 15px;
+}
+h3 {
+  color: #000000;
+  font-size: 15px;
+}
+<!-- body { -->
+<!--     font-family: 'Nunito Sans'; -->
+<!-- } -->
+<!-- body { -->
+<!--   color: #222222; -->
+<!--   background-image: url('http://bestanimations.com/Nature/Fire/lava-fire-animated-gif.gif'); -->
+<!-- } -->
+
+<!-- p { -->
+<!--     color: #ffffff; -->
+<!-- } -->
+<!-- body { -->
+<!--     font-family: 'Nosifer'; -->
+<!-- } -->
+
+
+</style>
+<!-- <link href='https://fonts.googleapis.com/css?family=Nunito Sans' rel='stylesheet'> -->
+
+<!-- <link href='https://fonts.googleapis.com/css?family=Nosifer' rel='stylesheet'> -->
+```{r, include = F}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+#options(knitr.kable.NA = '')
+rm(list=ls())
+
+
+# library(aiGraphs)
+library(aiHelper)
+library(dplyr)
+library(ggplot2)
+require(survey)
+require(Hmisc)
+require(tidyr)
+require(knitr)
+require(magrittr)
+```
+
+```{r read_in_data, echo = F, include = F}
+# Read in data
+setwd("...")
+
+df <- read.csv('weighted_completes_v4.csv', header=T, na.strings = "")
+
+df$raw_age <- NA
+df$raw_age <- ifelse(2017-as.numeric(as.character(df$qyob))>0, 2017-as.numeric(as.character(df$qyob)), 9999)
+#df[is.na(df$raw_age),]$raw_age <- 999
+df$age_category <- NA
+df[df$raw_age < 35 ,]$age_category <- "Under 35"
+df[df$raw_age>=35 & df$raw_age<=50,]$age_category <- "36 - 50"
+df[df$raw_age>50 & df$raw_age<=65,]$age_category <- "56 - 65"
+df[df$raw_age>65 & df$raw_age<=75,]$age_category <- "66 - 75"
+df[df$raw_age>75,]$age_category<- "76+"
+
+#fix gender
+df[df$qgender == 1,]$qgender <- "Male"
+df[df$qgender == 2,]$qgender <- "Female"
+
+df[is.na(df$q11b)]$q11b <- "Not Applicable"
+
+# split subsets
+dfa <- df[df$split == 'A',]
+dfb <- df[df$split == 'B',]
+
+
+# social media df
+dfsm <- df[c("enterprise_id", "q11", "weights")]
+dfsm$q11 <- as.character(df$q11)
+dfsm[dfsm$q11=="Facebook", ]$q11 <- 1
+dfsm[dfsm$q11=="Twitter", ]$q11 <- 2
+dfsm[dfsm$q11=="Instagram", ]$q11 <- 3
+dfsm[dfsm$q11=="Pinterest", ]$q11 <- 4
+dfsm[dfsm$q11=="LinkedIn", ]$q11 <- 5
+dfsm[dfsm$q11=="Other", ]$q11 <- 6
+dfsm[dfsm$q11=="Do Not Use Social Media", ]$q11 <- 7
+dfsm[dfsm$q11=="Refused", ]$q11 <- 8
+
+dfsm$Facebook <- NA
+dfsm$Facebook <- ifelse (grepl("1", dfsm$q11), "Yes", "No")
+dfsm$Twitter <- NA
+dfsm$Twitter <- ifelse (grepl("2", dfsm$q11), "Yes", "No")
+dfsm$Instagram <- NA
+dfsm$Instagram <- ifelse (grepl("3", dfsm$q11), "Yes", "No")
+dfsm$Pinterest <- NA
+dfsm$Pinterest <- ifelse (grepl("4", dfsm$q11), "Yes", "No")
+dfsm$LinkedIn <- NA
+dfsm$LinkedIn <- ifelse (grepl("5", dfsm$q11), "Yes", "No")
+dfsm$Other <- NA
+dfsm$Other <- ifelse (grepl("6", dfsm$q11), "Yes", "No")
+dfsm$None <- NA
+dfsm$None <- ifelse (grepl("7", dfsm$q11), "Yes", "No")
+dfsm$Refused <- NA
+dfsm$Refused <- ifelse (grepl("8", dfsm$q11), "Yes", "No")
+
+
+```
+
+```{r, echo = F}
+tt <- function(x, weights = df$weights,
+               lvls = NULL, recode_na = "",
+               raw_df = F,
+               order_prop = F){
+  # x = vector of values
+  # weights = weights
+  # lvls = level order in x (if you want it ordered)
+  # necode_na = how to recode NA values
+  # raw_df = if T, return markdown, if F return df
+  # order_prop = if T, order by proprotion, if F, order alphabetical
+  
+  # conditions to run
+  stopifnot(is.vector(x),
+            length(x) > 0,
+            length(x) == length(weights) | is.null(weights)
+  )
+  
+  # if weights is null, set to 1
+  if(is.null(weights)) weights <- rep(1, length(x))
+  
+  # add NA values
+  if(!is.null(recode_na)) x[is.na(x)] <- recode_na
+  
+  # add ordered factor
+  if(!is.null(lvls)) x <- factor(x, levels = c(lvls, recode_na), 
+                                 ordered = T)
+  
+  # create crosstab
+  df <- data.frame(variable = x, weights = weights) %>%
+    # group by variable
+    group_by(variable) %>%
+    # get raw counts
+    dplyr::summarise(unweighted_n = n(),
+              weighted_n = sum(weights)) %>%
+    ungroup() %>%
+    # create probabilities
+    mutate(unweighted_prop = unweighted_n/sum(unweighted_n),
+           weighted_prop = weighted_n/sum(weighted_n))
+  
+  # Order if applicable
+  if(order_prop == TRUE){
+    df <- df %>%
+      arrange(desc(weighted_prop))
+  }
+  
+  df <- df %>%
+    # Format
+    mutate(weighted_prop = sprintf("%.0f%%", round(weighted_prop * 100, 3)),
+           weighted_n = round(weighted_n),
+           unweighted_prop = sprintf("%.0f%%", round(unweighted_prop * 100, 3)),
+           unweighted_n = round(unweighted_n)
+    ) %>%
+    select(variable, weighted_prop, weighted_n, unweighted_prop, unweighted_n)
+  
+  
+  
+  # Add total
+  df <- rbind(
+    df, 
+    data.frame(variable = '**Total**', 
+               weighted_prop = sprintf("%.0f%%", round(sum(df$weighted_n)/sum(df$weighted_n)*100,1)), weighted_n = sum(df$weighted_n),
+               unweighted_prop = NA, unweighted_n = sum(df$unweighted_n)
+    )
+  )
+  
+  
+  df <- df %>% 
+    select(variable, weighted_prop)
+  
+  if(raw_df == TRUE){
+    return(df)
+  } else {
+    knitr::kable(
+      df, col.names = c('', '%'), 
+      align = c('l', 'r'), format.args = list(big.mark = ',')
+    )
+  }
+    
+}
+
+# function for split A
+tta <- function(x, weights = dfa$weights,
+               lvls = NULL, recode_na = "",
+               raw_df = F,
+               order_prop = F){
+  # x = vector of values
+  # weights = weights
+  # lvls = level order in x (if you want it ordered)
+  # necode_na = how to recode NA values
+  # raw_df = if T, return markdown, if F return df
+  # order_prop = if T, order by proprotion, if F, order alphabetical
+  
+  # conditions to run
+  stopifnot(is.vector(x),
+            length(x) > 0,
+            length(x) == length(weights) | is.null(weights)
+  )
+  
+  # if weights is null, set to 1
+  if(is.null(weights)) weights <- rep(1, length(x))
+  
+  # add NA values
+  if(!is.null(recode_na)) x[is.na(x)] <- recode_na
+  
+  # add ordered factor
+  if(!is.null(lvls)) x <- factor(x, levels = c(lvls, recode_na), 
+                                 ordered = T)
+  
+  # create crosstab
+  df <- data.frame(variable = x, weights = weights) %>%
+    # group by variable
+    group_by(variable) %>%
+    # get raw counts
+    dplyr::summarise(unweighted_n = n(),
+              weighted_n = sum(weights)) %>%
+    ungroup() %>%
+    # create probabilities
+    mutate(unweighted_prop = unweighted_n/sum(unweighted_n),
+           weighted_prop = weighted_n/sum(weighted_n))
+  
+  # Order if applicable
+  if(order_prop == TRUE){
+    df <- df %>%
+      arrange(desc(weighted_prop))
+  }
+  
+  df <- df %>%
+    # Format
+    mutate(weighted_prop = sprintf("%.0f%%", round(weighted_prop * 100, 3)),
+           weighted_n = round(weighted_n),
+           unweighted_prop = sprintf("%.0f%%", round(unweighted_prop * 100, 3)),
+           unweighted_n = round(unweighted_n)
+    ) %>%
+    select(variable, weighted_prop, weighted_n, unweighted_prop, unweighted_n)
+  
+  
+  
+  # Add total
+  df <- rbind(
+    df, 
+    data.frame(variable = '**Total**', 
+               weighted_prop = sprintf("%.0f%%", round(sum(df$weighted_n)/sum(df$weighted_n)*100,1)), weighted_n = sum(df$weighted_n),
+               unweighted_prop = NA, unweighted_n = sum(df$unweighted_n)
+    )
+  )
+  
+  
+  df <- df %>% 
+    select(variable, weighted_prop)
+  
+  if(raw_df == TRUE){
+    return(df)
+  } else {
+    knitr::kable(
+      df, col.names = c('', '%'), 
+      align = c('l', 'r'), format.args = list(big.mark = ',')
+    )
+  }
+    
+}
+
+# function for split B
+ttb <- function(x, weights = dfb$weights,
+               lvls = NULL, recode_na = "",
+               raw_df = F,
+               order_prop = F){
+  # x = vector of values
+  # weights = weights
+  # lvls = level order in x (if you want it ordered)
+  # necode_na = how to recode NA values
+  # raw_df = if T, return markdown, if F return df
+  # order_prop = if T, order by proprotion, if F, order alphabetical
+  
+  # conditions to run
+  stopifnot(is.vector(x),
+            length(x) > 0,
+            length(x) == length(weights) | is.null(weights)
+  )
+  
+  # if weights is null, set to 1
+  if(is.null(weights)) weights <- rep(1, length(x))
+  
+  # add NA values
+  if(!is.null(recode_na)) x[is.na(x)] <- recode_na
+  
+  # add ordered factor
+  if(!is.null(lvls)) x <- factor(x, levels = c(lvls, recode_na), 
+                                 ordered = T)
+  
+  # create crosstab
+  df <- data.frame(variable = x, weights = weights) %>%
+    # group by variable
+    group_by(variable) %>%
+    # get raw counts
+    dplyr::summarise(unweighted_n = n(),
+              weighted_n = sum(weights)) %>%
+    ungroup() %>%
+    # create probabilities
+    mutate(unweighted_prop = unweighted_n/sum(unweighted_n),
+           weighted_prop = weighted_n/sum(weighted_n))
+  
+  # Order if applicable
+  if(order_prop == TRUE){
+    df <- df %>%
+      arrange(desc(weighted_prop))
+  }
+  
+  df <- df %>%
+    # Format
+    mutate(weighted_prop = sprintf("%.0f%%", round(weighted_prop * 100, 3)),
+           weighted_n = round(weighted_n),
+           unweighted_prop = sprintf("%.0f%%", round(unweighted_prop * 100, 3)),
+           unweighted_n = round(unweighted_n)
+    ) %>%
+    select(variable, weighted_prop, weighted_n, unweighted_prop, unweighted_n)
+  
+  
+  
+  # Add total
+  df <- rbind(
+    df, 
+    data.frame(variable = '**Total**', 
+               weighted_prop = sprintf("%.0f%%", round(sum(df$weighted_n)/sum(df$weighted_n)*100,1)), weighted_n = sum(df$weighted_n),
+               unweighted_prop = NA, unweighted_n = sum(df$unweighted_n)
+    )
+  )
+  
+  
+  df <- df %>% 
+    select(variable, weighted_prop)
+  
+  if(raw_df == TRUE){
+    return(df)
+  } else {
+    knitr::kable(
+      df, col.names = c('', '%'), 
+      align = c('l', 'r'), format.args = list(big.mark = ',')
+    )
+  }
+    
+}
+
+
+# Include some default levels here...
+
+
+l1 <- c(
+  "Strongly approve",
+  "Somewhat approve",
+  "Unsure",
+  "Somewhat disapprove",
+  "Strongly disapprove",
+  "Refused")
+
+l2 <- c("1" = "I have heard lot of about the legislation",
+        "2" = "I have heard a little about the legislation",
+        "3" = "I have not heard any news about the legislation",
+        "4" = "Unsure",
+        "5" = "Refused")
+
+l3 <- c("1" = "My family and I would be much better off",
+        "2" = "My family and I would be somewhat better off",
+        "3" = "My family and I would not be affected", 
+        "4" = "My family and I would be somewhat worse off", 
+        "5" = "My family and I would be much worse off\t", 
+        "6" = "Unsure",
+        "7" = "Refused")
+
+l4 <- c("1" = "Good for people like me","2" = "Bad for people like me","3" = "No Difference / Doesn't Matter","4" = "Unsure","5" = "Refused")
+
+l5 <-  c("1" = "I am most concerned with politics at the local level","2" = "I am most concerned with politics at the state level","3" = "I am most concerned with politics at the national level","4" = "I am not concerned with politics at all","5" = "Unsure","6" = "Refused")
+
+l6 <- c("1" = "Very active","2" = "Somewhat active","3" = "Not too active","4" = "Not active at all","5" = "Unsure","6" = "Refused")
+
+l7 <- c("1" = "Yes","2" = "No","3" = "Unsure","4" = "Refused")
+
+l8 <- c("1" = "Very convincing","2" = "Somewhat convincing","3" = "Not very convincing","4" = "Not at all convincing","5" = "Unsure","6" = "Refused")
+
+l9 <- c("1" = "Yes, I do recall seeing ads or other information from AFSCME","2" = "No, I do not recall seeing anything","3" = "Unsure","4" = "Refused")
+
+l10 <- c("1"="Less than $25,000","2"="25,000 - less than 50,000","3"="50,000 - less than 75,000","4"="75,000 - less than 110,000","5"="110,000 and over","6"="Prefer not to say")
+
+l11 <- c("1" = "Facebook","2" = "Twitter","3" = "Instagram","4" = "Pinterest","5" = "LinkedIn","6" = "Other","7" = "Do Not Use Social Media","8" = "Refused")
+
+l11b <- c("Facebook","Twitter","Instagram","Pinterest","LinkedIn","Other","Refused")
+
+sex_lvl <- c(
+  "1"="Male",
+	"2"="Female"
+)
+income_lvl <- c(
+  "Less than $25,000",
+	"25,000 - less than 50,000",
+	"50,000 - less than 75,000",
+	"75,000 - less than 110,000",
+	"110,000 and over",
+	"Refused"
+)
+
+age_lvl <- c("Under 35", 
+             "36 - 50", 
+             "56 - 65", 
+             "66 - 75", 
+             "76+")
+
+sm_lvl <- c("Yes", "No")
+```
+
+```{r, echo = F}
+select_all <- function(col_include, col_exclude, df){
+  
+  # col_include = columns to include 
+  # col_exclude = columns to exclude
+  # df = dataframe
+  
+  # Get columns
+  df_tmp <- df[, c(setdiff(col_include, col_exclude), 'weights', 'enterprise_id')]
+  totals <- round(c(unweighted = nrow(df_tmp), weighted = sum(df_tmp$weights)),1)
+  
+  # Stack it
+  df_tmp <- reshape2::melt(df_tmp, id = c('weights', 'enterprise_id'))
+  
+  df_tmp <- df_tmp %>% 
+    group_by(variable, value) %>%
+    summarise(unweighted_n = n(),
+              weighted_n = sum(weights)) %>%
+    filter(!is.na(value)) %>%
+    ungroup() %>%
+    mutate(unweighted_prop = unweighted_n/nrow(df),
+           weighted_prop = weighted_n / sum(df$weights)) %>%
+    # order
+    arrange(desc(weighted_prop)) %>%
+    # reformat
+    mutate(weighted_prop = sprintf("%.0f%%", round(weighted_prop * 100, 1)),
+           weighted_n = prettyNum(round(weighted_n), big.mark = ','),
+           unweighted_prop = sprintf("%.0f%%", round(unweighted_prop * 100, 1)),
+           unweighted_n = prettyNum(round(unweighted_n), big.mark = ','))
+  
+    # Add total
+  df_tmp <- rbind(
+    df_tmp, 
+    data.frame(variable = '', 
+               value = '**Total**',
+               weighted_prop = NA, weighted_n = totals['weighted'],
+               unweighted_prop = NA, unweighted_n = totals['unweighted'])
+  )
+  
+  # select / export
+  df_tmp  %>%
+    # select(value, weighted_prop, weighted_n, unweighted_prop, unweighted_n) %>%
+    select(value, weighted_prop, weighted_n) %>%
+    knitr::kable(., 
+                 col.names = c('', 'Proportion', 'N Size'),
+                 align = c('l', 'r', 'r'),
+                 format.args = list(big.mark = ','),
+                 row.names = FALSE
+    )
+    
+}
+```
+<b><p align="center">MoE +/- `r round(1/sqrt(nrow(df))*100,1)`%
+</br>
+N = `r nrow(df)`
+</p></b>
+
+# About
+
+This survey is a survey of 1143 AFSCME members nationwide. The surveys were collected via landline (333), cell phone (235), and online (435) from July 24, 2017 - July 27, 2017. Respondents weighted to the membership using age, race, gender, and partisanship.
+
+# Trump
+
+**Overall, do you approve or disapprove of the way Donald Trump is handling his job as President?    **
+
+```{r echo = F}
+tt(x = as.vector(df$q1), lvls = l1)
+```
+
+#Health Care
+
+**In the past few weeks, how much have you heard or read about the legislation proposed by Senate Republicans to repeal and replace the Affordable Care Act, also known as Obama Care?**
+
+```{r echo = F}
+tt(x = as.vector(df$q2), lvls = l2)
+```
+
+
+**If the legislation proposed to repeal and replace the Affordable Care Act became law, how do you think you and your family might be personally affected by it?**
+
+```{r echo = F}
+tt(x = as.vector(df$q3), lvls = l3)
+```
+
+#Economy
+
+**Do you think Donald Trump´s economic policies are good for people like you, are bad for people like you, or don´t have much effect either way? **
+
+```{r echo = F}
+tt(x = as.vector(df$q4), lvls = l4)
+```
+
+#Political Interest
+
+**Thinking about politics and issues that affect you personally, are you generally most concerned with local politics and issues, such as city council or other local elections, state-level politics and elections, or national politics?**
+
+```{r echo = F, warning=F}
+tt(x = as.vector(df$q5), lvls = l5)
+```
+
+#Community Engagement
+
+**Now, please tell me, how active you are in your community, either through community groups such as a parent teacher association, your church, Habitat for Humanity, Rotary, or any other volunteer organization outside of your union, would you say you are very active, somewhat active, not too active, or not active at all?**
+
+```{r echo = F, warning=F}
+tt(x = as.vector(df$q6), lvls = l6)
+```
+
+#Alternative Dues Deduction
+
+**If the union could no longer directly collect dues using payroll deduction, would you be willing to pay dues to the union with a credit card or bank draft?**
+
+```{r echo = F, warning = F}
+tt(x = as.vector(df$q7), lvls = l7)
+``` 
+
+#Right to Work
+
+**Next I am going to read you a short statement.  After I am finished I would like you to tell me if the statement is convincing or not convincing.**
+
+**Every public employee may choose whether to join the union but the union is required to negotiate on behalf of all workers whether or not they join. Since all workers benefit from the union´s gains, it´s fair that everyone chips in toward the cost. These fair share arrangements were approved by a unanimous Supreme Court 40 years ago. No one is or will be required to join a union, and corporate special interests are working to erode the freedom of working people to come together to negotiate for fair wages and benefits.**
+
+```{r echo = F} 
+tta(x = as.vector(dfa$q8a), lvls = l8)
+``` 
+
+**In America, we have the right to decide how we spend our hard-earned money and how we align ourselves politically. Choosing to work in the public sector shouldn´t require anyone to pay for union representation. If the union does a good job securing benefits and making itself valuable, then it doesn´t need to rely on fair-share agreements or force people to join.**
+
+```{r echo = F} 
+ ttb(x = as.vector(dfb$q8b), lvls = l8)
+``` 
+
+#Digital
+
+**Changing topics, I´d like you to think about any content you have seen online over the past few weeks. Do you remember seeing information or advertisements from AFSCME, either on Facebook, ads on other websites, or other online sources?**
+
+
+```{r echo = F}
+tt(x = as.vector(df$q9), lvls = l9)
+```
+
+
+**For which of these social media platforms do you have an account?**
+```{r echo = F, warning=F}
+
+```
+
+**Which of those social media accounts would you say you use the most?**
+
+```{r echo = F}
+tt(x = as.vector(df$q11b), lvls = l11b)
+```
+
+
+# Demographics
+
+**The following questions are for statistical purposes only, and to ensure a representative sample**
+**What is your year of birth?**
+
+```{r echo = F}
+tt(x = as.vector(df$age_category), lvls=age_lvl)
+```
+
+<!-- # Gender -->
+
+**Income**
+
+```{r echo = F}
+tt(x = as.vector(df$q10), lvls = l10)
+```
+
+
+**Gender**
+
+```{r echo = F}
+tt(x = as.vector(df$qgender), lvls = unique(df$qgender))
+```
+
+
+© 2018 GitHub, Inc.
