@@ -1,0 +1,136 @@
+---
+title: "Progressive Data Salary Survey 2018"
+author: 
+date:
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+---
+```{r,include=FALSE}
+#comment, modify html font size, text colors, etc.
+```
+<style type="text/css"> .table { margin-left:auto; margin-right:auto; width: 75%; } h1 { color: #cc0000; font-size: 20px; } h2 { color: #ACB2BD; font-size: 15px; } h3 { color: #000000; font-size: 15px; } </style>
+
+```{r setup, include=FALSE}
+#load packages
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.kable.NA = '')
+rm(list=ls())
+library(aiHelper)
+library(dplyr)
+library(ggplot2)
+require(survey)
+require(Hmisc)
+require(tidyr)
+require(knitr)
+require(magrittr)
+
+```
+
+## 
+
+```{r, include=FALSE}
+#load data, make any necessary transformations
+```
+```{r, include=FAlSE}
+
+# Main function to generate cross-tabs, modify for any questions that don't use all responses
+tt <- function(x, weights = NULL,
+               lvls = NULL, recode_na = 'Refused',
+               raw_df = F,
+               order_prop = F, last_ord = NULL){
+  
+  # x = vector of values
+  # weights = weights
+  # lvls = level order in x (if you want it ordered)
+  # necode_na = how to recode NA values, defaults to 'Refused'
+  # raw_df = if T, return markdown, if F return HTML
+  # order_prop = if T, order by proprotion, if F, order alphabetical
+  # last_ord = whatever you order by, the inputs here are put in the bottom of the ordering
+
+  # conditions to run
+  stopifnot(#is.vector(x),
+    length(x) > 0,
+    length(x) == length(weights) | is.null(weights)
+  )
+
+  # if weights is null, set to 1
+  if(is.null(weights)) weights <- rep(1, length(x))
+  
+  if(is.factor(x) & sum(is.na(x)) > 0){
+    x <- factor(x, levels = c(levels(x), recode_na))
+  }
+  
+  if(is.character(x) & sum(is.na(x)) > 0){
+    x <- factor(x, levels = c(unique(x), recode_na))
+  }
+
+  # add ordered factor
+  if(!is.null(lvls)){
+    if(sum(is.na(x)) > 0) lvls <- c(lvls, recode_na)
+    x <- factor(x, levels = lvls, ordered = T)
+  } 
+
+  # add NA values
+  if(!is.null(recode_na) & sum(is.na(x)) > 0) x[is.na(x)] <- recode_na
+
+  # create crosstab
+  df <- data.frame(variable = x, weights = weights) %>%
+    # group by variable
+    group_by(variable) %>%
+    # get raw counts
+    summarise(unweighted_n = n(),
+              weighted_n = sum(weights)) %>%
+    ungroup() %>%
+    tidyr::complete(variable, fill = list(unweighted_n = 0,
+                                          weighted_n = 0)) %>%
+    # create probabilities
+    mutate(unweighted_prop = unweighted_n/sum(unweighted_n),
+           weighted_prop = weighted_n/sum(weighted_n))
+
+  # Order if applicable
+  if(order_prop == TRUE){
+    df <- df %>%
+      arrange(desc(weighted_prop))
+    var_char <- as.character(df$variable)
+    df$variable <- factor(
+      df$variable,
+      levels = c(var_char[! var_char %in% last_ord], last_ord))
+    df <- df %>%
+      arrange(variable)
+  }
+
+  df <- df %>%
+    select(variable, weighted_prop, weighted_n) %>%
+    mutate(weighted_prop = formattable::percent(weighted_prop, 0),
+           weighted_n = formattable::digits(weighted_n, 0))
+    
+
+  if(raw_df == TRUE){
+    df
+  } else {
+    .pretty_tt(df)
+  }
+
+}
+
+# Returns the HTML stuff
+.pretty_tt <- function(df){
+  
+  df %>%
+    rename(' ' = variable,
+           'Proportion' = weighted_prop,
+           'N' = weighted_n) %>%
+    formattable::formattable(list(
+      Proportion = formattable::proportion_bar()),
+      align = c('l', 'r', 'r'))
+  
+  
+}
+```
+
+#Executive Summary
+**About the Survey**:  This salary was administered in July 2018 to data, analytics, and technology practitioners in progressive politics. There were xx respondents (comparable to the 273 respondents in 2017) recruited using snowball sampling: the survey was announced on a few major progressive data e-mail listservs, and readers were encouraged to share the survey around their offices. See Notes for more information about who was eligible. Thank you to everyone who participated in or distributed this survey!
