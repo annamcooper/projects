@@ -4,16 +4,25 @@ author:
 date:
 output: 
   html_document:
+    self_contained: false
+    theme: flatly # this is where the thems is specified
     toc: true
     toc_depth: 4
     toc_float:
       collapsed: false
+      smooth_scroll: false
 ---
 ```{r,include=FALSE}
 #comment, modify html font size, text colors, etc.
 ```
-<style type="text/css"> .table { margin-left:auto; margin-right:auto; width: 75%; } h1 { color: #cc0000; font-size: 20px; } h2 { color: #ACB2BD; font-size: 15px; } h3 { color: #000000; font-size: 15px; } </style>
-
+<!-- This stuff sets the table width at 80% of total width -->
+<style type="text/css">
+.table {
+    margin-left:auto; 
+    margin-right:auto;
+    width: 80%;
+}
+</style>
 ```{r setup, include=FALSE}
 #load packages
 knitr::opts_chunk$set(echo = TRUE)
@@ -134,3 +143,214 @@ tt <- function(x, weights = NULL,
 
 #Executive Summary
 **About the Survey**:  This salary was administered in July 2018 to data, analytics, and technology practitioners in progressive politics. There were xx respondents (comparable to the 273 respondents in 2017) recruited using snowball sampling: the survey was announced on a few major progressive data e-mail listservs, and readers were encouraged to share the survey around their offices. See Notes for more information about who was eligible. Thank you to everyone who participated in or distributed this survey!
+
+**About Respondents**:
+<!-- add in a few bullets about demographics, from last year: 
+Respondents were 56% men and 76% white with a median age of 25-29. Half of all respondents live in the Washington, DC area.
+
+92% of all respondents have a bachelor’s degree or above, and 68% earned their highest degree in the social sciences.
+
+Respondents were evenly distributed across analytics/polling firms, issue or advocacy organizations, and labor unions.
+
+Most respondents work in the fields of general data management or analytics.
+
+37% of all respondents were managers, but this varies dramatically by gender: only 28% of women but 43% of men were managers. The likelihood of being a manager does not meaningfully vary between white respondents and people of color. -->
+
+**Salary**: <!-- median salary range
+The median salary reported was $70,000 to $74,999, but there is substantial variation in salary:
+
+Non-whites had a lower median salary at $65,000 to $69,000 versus $75,000 to $79,000 for whites. This gap persists across years of experience.
+
+Men and women had the same median salary at $70,000 to $74,999.
+
+Entry-level employees had a median salary of $55,000 to $59,999; mid-level employees $65,000 to $69,999; and senior / department-head employees $90,000 to $94,999.
+
+Non-managers had a median salary of $65,000 to $69,999 while managers of 1-4 staffers made $20,000 more.
+
+Bachelor’s and Master’s degree holders make roughly the same amount, but PhD-holders (albeit a small sample) make substantially more.
+
+In most fields, the percent of time spent writing code is uncorrelated with salary, and indeed, most technical skills are not correlated with increases in salary. However, engineers appear to make more (with a median of $85,000 to $89,999) than those working in data management ($70,000 to $74,999) or analytics ($75,000 to $79,999). -->
+
+**Negotiation**: <!-- About half of all respondents who were eligible to negotiate a salary did so, and of those who did, 73% increased their compensation at a median rate of 5-10% increase over base. Women were slightly more likely than men to negotiate, but of those who increased their compensation, 48% of men negotiated salary increases of 10%+ while only 31% of women did the same. -->
+
+**Tools**: <!-- The most commonly used tools are Excel, SQL, and VAN with 90%+ of respondents reporting that they had used each at least once.
+
+Knowledge of programming outside of SQL is rare, with only 25% of respondents at most reporting “Intermediate” or “Advanced” knowledge of a language such as R, Python, Javascript / HTML, Stata, or Ruby.
+
+Most tools are learned outside of school, either on the job or through other means.
+
+Men were substantially more likely than women to rate themselves as intermediate / advanced users. However, the gender gap narrows substantially when looking at often people use those skills. -->
+
+**Skills**: <!-- The most commonly used skills are transforming data and generating reports in SQL; managing and reviewing others’ analysis or work; creating voter contact universes; presenting analyses to non-technical staff; debugging code; pitching projects; and coordinating groups. Fewer than half of respondents reported running regressions, and only 25% reported building a predictive model. -->
+
+**Career Plans**: <!-- About half of respondents plan on staying at the same organization for the next year, and 19% reported a desire to leave politics.
+
+Asked where they expected to be working a year from now, 40% of respondents indicated interest in a political campaign (only 10% of respondents currently work on a political campaign).
+
+When asked about the next step in their career, 57% of respondents wanted to learn new skills while 45% wanted to move into management.
+
+Respondents diverged on the single organization they would be most excited to work at with 40% of respondents opting to not respond at all. Of the 161 respondents who did respond, Civis Analytics ranked #1 with 15 votes (9%), followed by the Analyst Institute, BlueLabs, and the DNC. -->
+
+# Respondent Characteristics
+
+## Demographics {.tabset}
+
+### Gender
+
+### Race/Ethnicity
+
+### Age
+
+### Sexuality
+
+### Disability
+
+### Immigration Status
+
+## Geography {.tabset}
+
+### Country
+
+### Area
+
+## Education {.tabset}
+
+### Highest Degree
+
+### Field of Study
+
+## Employment Status {.tabset}
+
+### Current Status
+
+### Involvement in Data/Analytics/Tech
+
+## Work Experience {.tabset}
+
+### Politics & Data
+
+### Politics, Not Data
+
+### Data, Not Politics
+
+### Total
+
+# Job Characteristics
+
+## Organization Type
+
+## Primary Job Function
+
+##Seniority
+
+## Management {.tabset}
+
+### Overall
+
+### By Gender
+
+### By Race
+
+## Time Writing Code {.tabset}
+
+### Overall
+
+### By Seniority
+
+### By Job Type
+
+# Salary Overview
+
+## Salary Distribution
+
+## Benefits
+
+## Negotiation
+
+# Tools and Skills {.tabset}
+
+### Exposure
+
+### Skill Level
+
+### Frequency
+
+### Learn
+
+## Tools
+
+## Skills {.tabset}
+
+### Management
+
+### Technical
+
+### Open-Ended
+
+# Salary Crosstabs
+
+## Respondent Characteristics {.tabset}
+
+### Gender
+
+### Race
+
+### Gender & Race 
+<!-- I dont know how to do this -->
+
+### Age
+
+### Sexuality
+
+### Disability
+
+## Education {.tabset}
+
+### Highest Degree
+
+### Field of Study
+
+## Work Experience
+
+## Job Characteristics {.tabset}
+
+### Organization
+
+### Seniority
+
+### Management
+
+### Primary Job Function
+
+### % Writing Code
+
+## Tools and Skills {.tabset}
+
+### Tool
+
+### Skill
+
+# Career Plans {.tabset}
+
+### Next Step
+
+### Plans to Leave
+
+### Expect to be in One Year
+
+### Top Choice Organization
+
+# Notes {.tabset}
+
+### Eligibility
+
+### For Next Year
+
+### Design
+
+### Author and Thanks
+
+# Appendix
+
+
+
